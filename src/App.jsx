@@ -37,6 +37,12 @@ function SkillCategory({ label, skills, animate }) {
   );
 }
 
+// ─── Touch detection helper ──────────────────────────────────────────────────
+const isTouchDevice = () =>
+  window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+  'ontouchstart' in window ||
+  navigator.maxTouchPoints > 0;
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
   const cursorRef = useRef(null);
@@ -47,9 +53,12 @@ export default function App() {
   const [activeSection, setActiveSection] = useState('');
   const [formSent, setFormSent] = useState(false);
   const [skillsAnimate, setSkillsAnimate] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isTouch] = useState(() => isTouchDevice());
 
-  // Cursor
+  // Cursor (only on non-touch devices)
   useEffect(() => {
+    if (isTouch) return;
     const onMove = (e) => {
       mousePos.current = { x: e.clientX, y: e.clientY };
       if (cursorRef.current) {
@@ -68,10 +77,11 @@ export default function App() {
     };
     raf = requestAnimationFrame(animate);
     return () => { document.removeEventListener('mousemove', onMove); cancelAnimationFrame(raf); };
-  }, []);
+  }, [isTouch]);
 
-  // Cursor expand on hover targets
+  // Cursor expand on hover targets (only on non-touch)
   useEffect(() => {
+    if (isTouch) return;
     const expand = () => {
       if (cursorRef.current) { cursorRef.current.style.width = '20px'; cursorRef.current.style.height = '20px'; }
       if (ringRef.current) { ringRef.current.style.width = '60px'; ringRef.current.style.height = '60px'; }
@@ -123,6 +133,15 @@ export default function App() {
     return () => bo.disconnect();
   }, []);
 
+  // Close mobile menu on resize to desktop
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth > 768) setMenuOpen(false); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const handleNavClick = () => setMenuOpen(false);
+
   const handleFormSubmit = () => {
     setFormSent(true);
     setTimeout(() => setFormSent(false), 3000);
@@ -149,19 +168,55 @@ export default function App() {
   return (
     <>
       <div className="scroll-progress" style={{ width: `${scrollPct}%` }} />
-      <div className="cursor" ref={cursorRef} />
-      <div className="cursor-ring" ref={ringRef} />
+
+      {/* Custom cursor — only on pointer/mouse devices */}
+      {!isTouch && (
+        <>
+          <div className="cursor" ref={cursorRef} />
+          <div className="cursor-ring" ref={ringRef} />
+        </>
+      )}
 
       {/* ── NAV ── */}
       <nav>
         <div className="nav-logo">[ HA ]</div>
+
+        {/* Desktop nav links */}
         <ul className="nav-links">
           {navItems.map(id => (
             <li key={id}><a href={`#${id}`} className={activeSection === id ? 'active' : ''}>{id}</a></li>
           ))}
           <li><a href="your-resume.pdf" download className="nav-resume-btn">↓ Resume</a></li>
         </ul>
+
+        {/* Hamburger button — visible on mobile */}
+        <button
+          className={`hamburger${menuOpen ? ' open' : ''}`}
+          onClick={() => setMenuOpen(o => !o)}
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
       </nav>
+
+      {/* ── MOBILE MENU ── */}
+      <div className={`mobile-menu${menuOpen ? ' open' : ''}`} aria-hidden={!menuOpen}>
+        <ul>
+          {navItems.map(id => (
+            <li key={id}>
+              <a href={`#${id}`} onClick={handleNavClick}>{id}</a>
+            </li>
+          ))}
+          <li>
+            <a href="your-resume.pdf" download className="mobile-resume-btn" onClick={handleNavClick}>
+              ↓ Resume
+            </a>
+          </li>
+        </ul>
+      </div>
 
       {/* ── HERO ── */}
       <section className="hero">
@@ -378,7 +433,7 @@ export default function App() {
               <div className="contact-links reveal">
                 {[
                   { icon: 'Email', label: 'harularora463@gmail.com', href: 'mailto:harularora463@gmail.com' },
-                    { icon: 'GitHub', label: 'github.com/HarulArora', href: 'https://github.com/HarulArora' },
+                  { icon: 'GitHub', label: 'github.com/HarulArora', href: 'https://github.com/HarulArora' },
                   { icon: 'LinkedIn', label: 'linkedin.com/in/yourname', href: '#' },
                 ].map(link => (
                   <a href={link.href} className="contact-link-row" key={link.icon}>
